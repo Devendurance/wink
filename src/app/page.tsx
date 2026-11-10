@@ -139,7 +139,7 @@ export default function Home() {
 
       <section id="how" style={{ maxWidth: 1360, margin: "0 auto", padding: "clamp(64px, 9vw, 128px) clamp(16px, 3vw, 40px) 0", scrollMarginTop: 80 }}>
         <h2 className="display-2">How gifting works</h2>
-        <ol style={{ listStyle: "none", padding: 0, marginTop: 40, display: "grid", gap: 16 }} className="md:grid-cols-3">
+        <ol style={{ listStyle: "none", padding: 0, marginTop: 40, display: "grid", gap: 16 }} className="grid-cols-[minmax(0,1fr)] md:grid-cols-3">
           {STEPS.map((s) => (
             <li key={s.n} className="panel" style={{ padding: 28 }}>
               <span className="numeral" style={{ fontSize: 40, color: "var(--ember)" }}>{s.n}</span>
@@ -152,7 +152,7 @@ export default function Home() {
 
       <section id="occasions" style={{ maxWidth: 1360, margin: "0 auto", padding: "clamp(64px, 9vw, 128px) clamp(16px, 3vw, 40px) 0", scrollMarginTop: 80 }}>
         <h2 className="display-2">For every little moment</h2>
-        <div style={{ display: "grid", gap: 16, marginTop: 40 }} className="md:grid-cols-3">
+        <div style={{ display: "grid", gap: 16, marginTop: 40 }} className="grid-cols-[minmax(0,1fr)] md:grid-cols-3">
           {OCCASIONS.map((o) => (
             <article key={o.title} className={`hero-card grain ${o.surface}`} style={{ position: "relative", minHeight: 360, color: o.ink, borderRadius: 32 }}>
               <h3 style={{ fontSize: 24, fontWeight: 600 }}>{o.title}</h3>
@@ -174,7 +174,7 @@ export default function Home() {
 
       <section id="trust" style={{ maxWidth: 1360, margin: "0 auto", padding: "clamp(64px, 9vw, 128px) clamp(16px, 3vw, 40px) 0", scrollMarginTop: 80 }}>
         <h2 className="display-2">Built to be trusted</h2>
-        <div style={{ display: "grid", gap: 16, marginTop: 40 }} className="sm:grid-cols-2 lg:grid-cols-4">
+        <div style={{ display: "grid", gap: 16, marginTop: 40 }} className="grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-4">
           {TRUST.map((t) => (
             <div key={t.title} className="panel">
               <h3 className="numeral" style={{ fontSize: 18 }}>{t.title}</h3>

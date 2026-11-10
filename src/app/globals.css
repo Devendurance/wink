@@ -433,3 +433,25 @@ textarea.field {
 .mascot-art {
   transition: transform 240ms ease;
 }
+
+.mc-card {
+  padding: 20px;
+}
+.mc-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+}
+@media (max-width: 479px) {
+  .mc-card {
+    padding: 14px;
+  }
+  .mc-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mc-foot .btn {
+    width: 100%;
+  }
+}

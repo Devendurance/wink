@@ -15,7 +15,9 @@
     "db:migrate": "drizzle-kit migrate",
     "deploy:testnet": "hardhat run scripts/deploy.js --network botchainTestnet",
     "deploy:mainnet": "hardhat run scripts/deploy.js --network botchainMainnet",
-    "test:ui": "vitest run test/ui"
+    "test:ui": "vitest run test/ui",
+    "qa:responsive": "node scripts/qa/responsive-check.mjs",
+    "qa:reclaim-sim": "node scripts/qa/reclaim-sim.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -46,6 +48,7 @@
     "eslint-config-next": "16.4.6",
     "hardhat": "^2.29.1",
     "jsdom": "^31.0.0",
+    "playwright-core": "^1.65.0",
     "tailwindcss": "4.3.3",
     "ts-node": "^10.9.2",
     "typescript": "^5",

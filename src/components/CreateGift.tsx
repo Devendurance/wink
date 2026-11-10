@@ -156,7 +156,7 @@ export function CreateGift() {
           <p className="muted">The Wink vault has not been deployed to this network.</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gap: 24, marginTop: 32 }} className="lg:grid-cols-[1.1fr_1fr]">
+        <div style={{ display: "grid", gap: 24, marginTop: 32 }} className="grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <form
             className="panel"
             style={{ display: "grid", gap: 24 }}

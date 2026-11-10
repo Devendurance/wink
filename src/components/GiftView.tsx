@@ -103,10 +103,26 @@ function GiftLoader({ id }: { id: bigint }) {
     queryKey: ["gift", ACTIVE.chain.id, id.toString()],
     enabled: !!publicClient,
     retry: (count, err) => !(err instanceof ChainReadError && err.code === "unknown_gift") && count < 2,
-    refetchInterval: 20_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: "always",
     queryFn: async () => ({ ...(await readGiftSnapshot(publicClient!, vault, id)), fetchedAtMs: Date.now() }),
   });
   const gift = giftQuery.data?.gift;
+  const snapForExpiry = giftQuery.data;
+  // The countdown is extrapolated from the last block time plus elapsed browser
+  // time. It is display only. Anything executable uses the chain timestamp alone.
+  const extrapolatedNow = snapForExpiry
+    ? snapForExpiry.chainNow + BigInt(Math.max(0, Math.floor((nowMs - snapForExpiry.fetchedAtMs) / 1000)))
+    : 0n;
+  const confirmingExpiry =
+    !!snapForExpiry &&
+    !!gift &&
+    deriveLifecycle(gift, extrapolatedNow) === "expired-awaiting-reclaim" &&
+    deriveLifecycle(gift, snapForExpiry.chainNow) === "claimable";
+  const { refetch: refetchGift } = giftQuery;
+  useEffect(() => {
+    if (confirmingExpiry) void refetchGift();
+  }, [confirmingExpiry, refetchGift]);
 
   const metaQuery = useQuery({
     queryKey: ["gift-meta", gift?.metadataHash],
@@ -162,8 +178,9 @@ function GiftLoader({ id }: { id: bigint }) {
   }
 
   const snap = giftQuery.data;
-  const nowSeconds = snap.chainNow + BigInt(Math.max(0, Math.floor((nowMs - snap.fetchedAtMs) / 1000)));
+  const nowSeconds = extrapolatedNow;
   const lifecycle = deriveLifecycle(gift, nowSeconds);
+  const actionLifecycle = deriveLifecycle(gift, snap.chainNow);
   const theme = metaQuery.data?.status === "ok" ? metaQuery.data.metadata.theme : "night-sky";
   const note = metaQuery.data?.status === "ok" ? metaQuery.data.metadata.note : null;
   const noteStatus = metaQuery.isPending ? "loading" : (metaQuery.data?.status ?? "unavailable");
@@ -175,11 +192,11 @@ function GiftLoader({ id }: { id: bigint }) {
 
   return (
     <Shell>
-      <div style={{ display: "grid", gap: 24 }} className="lg:grid-cols-[1.1fr_1fr]">
+      <div style={{ display: "grid", gap: 24 }} className="grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <GiftReveal key={id.toString()} theme={theme} note={note} noteStatus={noteStatus} amountText={`${formatBot(gift.amount, 6)} BOT`} />
         <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
           <GiftDetails gift={gift} lifecycle={lifecycle} nowSeconds={nowSeconds} proof={proofQuery.data} proofLoading={proofQuery.isPending} />
-          <GiftActions gift={gift} lifecycle={lifecycle} onConfirmed={refresh} />
+          <GiftActions gift={gift} lifecycle={actionLifecycle} nowSeconds={nowSeconds} confirmingExpiry={confirmingExpiry} onConfirmed={refresh} />
         </div>
       </div>
     </Shell>
@@ -257,7 +274,19 @@ function GiftDetails({
   );
 }
 
-export function GiftActions({ gift, lifecycle, onConfirmed }: { gift: Gift; lifecycle: GiftLifecycle; onConfirmed: () => Promise<void> }) {
+export function GiftActions({
+  gift,
+  lifecycle,
+  nowSeconds,
+  confirmingExpiry = false,
+  onConfirmed,
+}: {
+  gift: Gift;
+  lifecycle: GiftLifecycle;
+  nowSeconds: bigint;
+  confirmingExpiry?: boolean;
+  onConfirmed: () => Promise<void>;
+}) {
   const { address, isConnected, chainId } = useConnection();
   const { mutate: switchChain, isPending: switching } = useSwitchChain();
   const action: GiftAction = resolveGiftAction(isConnected ? address : null, gift, lifecycle);
@@ -314,7 +343,7 @@ export function GiftActions({ gift, lifecycle, onConfirmed }: { gift: Gift; life
             <>
               {noGas && !confirmed ? (
                 <p className="help help-error" role="alert">
-                  Your wallet has {balance ? formatBot(balance.value, 6) : "0"} BOT, which may not cover the gas fee.
+                  Your wallet has {balance ? formatBot(balance.value, 6) : "0"} BOT, which may not cover the network fee. The gift is safe and stays claimable until it expires.
                   {ACTIVE.isTestnet ? " Get free test BOT from the faucet, then come back." : " Add a little BOT, then come back."}
                 </p>
               ) : null}
@@ -337,11 +366,15 @@ export function GiftActions({ gift, lifecycle, onConfirmed }: { gift: Gift; life
       ) : null}
 
       {action === "sender-waiting" ? (
-        <div style={{ display: "grid", gap: 8 }}>
+        <div style={{ display: "grid", gap: 10 }}>
           <h2 className="heading-3">You sent this gift</h2>
+          <p style={{ fontWeight: 500 }}>Your gift is waiting to be claimed by {shortAddress(gift.recipient)}.</p>
           <p className="muted">
-            It is waiting for {shortAddress(gift.recipient)} to open it. Share the link above. If it is not claimed by the expiry time, you can reclaim your BOT
-            from this page.
+            If they do not claim it before {new Date(Number(gift.expiresAt) * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}, you can take your BOT back from this page.
+            Until then the gift stays locked in the vault, so reclaim is not available yet.
+          </p>
+          <p className="numeral" style={{ fontSize: 16 }} role="status">
+            {confirmingExpiry ? "Checking the chain to confirm the expiry..." : `Reclaim available in ${formatRemaining(gift.expiresAt - nowSeconds)}.`}
           </p>
         </div>
       ) : null}
@@ -358,9 +391,17 @@ export function GiftActions({ gift, lifecycle, onConfirmed }: { gift: Gift; life
               Switch to {ACTIVE.label}
             </button>
           ) : (
-            <button type="button" className="btn btn-ember" disabled={busy || confirmed || noGas} onClick={() => void submit("reclaim")}>
-              {busy ? "Working..." : confirmed ? "Reclaimed" : "Reclaim Gift"}
-            </button>
+            <>
+              {noGas && !confirmed ? (
+                <p className="help help-error" role="alert">
+                  Your wallet needs a little BOT to pay the network fee ({balance ? formatBot(balance.value, 6) : "0"} BOT available).
+                  Your gift is safe in the vault and stays reclaimable.{ACTIVE.isTestnet ? " Get free test BOT from the faucet, then come back." : ""}
+                </p>
+              ) : null}
+              <button type="button" className="btn btn-ember" disabled={busy || confirmed || noGas} onClick={() => void submit("reclaim")}>
+                {busy ? "Working..." : confirmed ? "Reclaimed" : "Reclaim Gift"}
+              </button>
+            </>
           )}
         </div>
       ) : null}
@@ -370,7 +411,7 @@ export function GiftActions({ gift, lifecycle, onConfirmed }: { gift: Gift; life
           <h2 className="heading-3">This gift has expired</h2>
           <p className="muted">
             It was not claimed in time, so it can no longer be claimed. Only the sender ({shortAddress(gift.sender)}) can take the BOT back.
-            {!isConnected ? " If that is you, connect your wallet to reclaim." : ""}
+            {!isConnected ? ` To reclaim it, connect the original sender wallet (${shortAddress(gift.sender)}).` : ""}
           </p>
           {!isConnected ? <ConnectPanel /> : null}
         </div>

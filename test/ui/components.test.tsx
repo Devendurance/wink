@@ -8,6 +8,11 @@ const RECIPIENT = "0x2222222222222222222222222222222222222222";
 const STRANGER = "0x3333333333333333333333333333333333333333";
 
 const wallet = { address: undefined as string | undefined, isConnected: false, chainId: 968 };
+const h = vi.hoisted(() => ({
+  txRun: vi.fn<(call: unknown) => Promise<unknown>>(async () => null),
+  snapshot: null as unknown,
+  metadata: { status: "ok" } as unknown,
+}));
 
 vi.mock("wagmi", () => ({
   useConnection: () => wallet,
@@ -16,13 +21,20 @@ vi.mock("wagmi", () => ({
   useConnectors: () => [],
   useConnect: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useDisconnect: () => ({ mutate: vi.fn() }),
+  usePublicClient: () => ({}),
+}));
+vi.mock("@/lib/giftClient", () => ({
+  readGiftSnapshot: async () => h.snapshot,
+  fetchGiftMetadata: async () => h.metadata,
+  findProofTx: async () => null,
 }));
 vi.mock("@/lib/useVaultTx", () => ({
-  useVaultTx: () => ({ phase: { step: "idle" }, run: vi.fn(), reset: vi.fn() }),
+  useVaultTx: () => ({ phase: { step: "idle" }, run: h.txRun, reset: vi.fn() }),
   useGasEstimate: () => ({ cost: 21000n * 10n ** 9n, loading: false }),
 }));
 
-import { GiftActions } from "@/components/GiftView";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { GiftActions, GiftPage } from "@/components/GiftView";
 import { GiftReveal } from "@/components/GiftReveal";
 
 const gift = (over: Partial<GiftView> = {}): GiftView => ({
@@ -42,8 +54,8 @@ function setWallet(address: string | undefined, chainId = 968) {
   wallet.chainId = chainId;
 }
 
-function renderActions(g: GiftView, lifecycle: GiftLifecycle) {
-  return render(<GiftActions gift={g} lifecycle={lifecycle} onConfirmed={async () => {}} />);
+function renderActions(g: GiftView, lifecycle: GiftLifecycle, nowSeconds = 1000n, confirming = false) {
+  return render(<GiftActions gift={g} lifecycle={lifecycle} nowSeconds={nowSeconds} confirmingExpiry={confirming} onConfirmed={async () => {}} />);
 }
 
 afterEach(() => cleanup());
@@ -153,5 +165,89 @@ describe("gift reveal", () => {
     render(<GiftReveal theme="night-sky" note="Hi" noteStatus="ok" amountText="1 BOT" />);
     fireEvent.click(screen.getByRole("button", { name: /tap the gift box/i }));
     expect(screen.getByText("Hi")).toBeTruthy();
+  });
+});
+
+
+describe("sender waiting and reclaim eligibility", () => {
+  it("explains why reclaim is not available yet and shows a countdown, with no reclaim button", () => {
+    setWallet(SENDER);
+    renderActions(gift({ expiresAt: 1000n + 3n * 86400n + 3600n }), "claimable", 1000n);
+    expect(screen.getByText(/Your gift is waiting to be claimed/)).toBeTruthy();
+    expect(screen.getByText(/reclaim is not available yet/i)).toBeTruthy();
+    expect(screen.getByText(/Reclaim available in 3d 1h/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /reclaim/i })).toBeNull();
+  });
+
+  it("does not offer reclaim while the chain has not confirmed the expiry", () => {
+    setWallet(SENDER);
+    renderActions(gift({ expiresAt: 1000n }), "claimable", 1005n, true);
+    expect(screen.getByText(/Checking the chain to confirm the expiry/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /reclaim/i })).toBeNull();
+  });
+
+  it("offers an enabled Take your BOT back action to the sender once the chain says expired", () => {
+    setWallet(SENDER.toUpperCase().replace("0X", "0x"));
+    renderActions(gift(), "expired-awaiting-reclaim", 2500n);
+    expect(screen.getByText("Take your BOT back")).toBeTruthy();
+    const btn = screen.getByRole("button", { name: "Reclaim Gift" }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+  });
+
+  it("explains a disconnected sender must connect the original wallet", () => {
+    setWallet(undefined);
+    renderActions(gift(), "expired-awaiting-reclaim", 2500n);
+    expect(screen.getByText(/connect the original sender wallet/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /reclaim/i })).toBeNull();
+  });
+
+  it("calls reclaim(giftId) and refetches after a confirmed receipt", async () => {
+    setWallet(SENDER);
+    const onConfirmed = vi.fn(async () => {});
+    h.txRun.mockResolvedValueOnce({ status: "success" });
+    render(<GiftActions gift={gift({ giftId: 0n })} lifecycle="expired-awaiting-reclaim" nowSeconds={2500n} onConfirmed={onConfirmed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reclaim Gift" }));
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalled());
+    expect(h.txRun).toHaveBeenCalledWith(expect.objectContaining({ functionName: "reclaim", args: [0n] }));
+  });
+
+  it("does not refetch or celebrate when the transaction did not confirm", async () => {
+    setWallet(SENDER);
+    const onConfirmed = vi.fn(async () => {});
+    h.txRun.mockResolvedValueOnce(null);
+    render(<GiftActions gift={gift()} lifecycle="expired-awaiting-reclaim" nowSeconds={2500n} onConfirmed={onConfirmed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reclaim Gift" }));
+    await Promise.resolve();
+    expect(onConfirmed).not.toHaveBeenCalled();
+  });
+});
+
+describe("gift page integration", () => {
+  const renderPage = () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={qc}>
+        <GiftPage giftId="2" />
+      </QueryClientProvider>
+    );
+  };
+
+  it("still shows reclaim to the sender of an expired gift when metadata is unavailable", async () => {
+    mockMotion(true);
+    setWallet(SENDER);
+    h.snapshot = { gift: gift({ giftId: 2n, expiresAt: 1000n }), chainNow: 2000n, fetchedAtMs: Date.now() };
+    h.metadata = { status: "unavailable" };
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Reclaim Gift" })).toBeTruthy();
+  });
+
+  it("shows the sender waiting panel, not reclaim, for an unexpired gift", async () => {
+    mockMotion(true);
+    setWallet(SENDER);
+    h.snapshot = { gift: gift({ giftId: 3n, expiresAt: 900_000n }), chainNow: 2000n, fetchedAtMs: Date.now() };
+    h.metadata = { status: "corrupted" };
+    renderPage();
+    expect(await screen.findByText(/Your gift is waiting to be claimed/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Reclaim Gift" })).toBeNull();
   });
 });

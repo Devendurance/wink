@@ -4,14 +4,20 @@ import { ACTIVE } from "@/lib/network";
 export function SiteFooter() {
   return (
     <footer style={{ background: "var(--n900)", borderTop: "1px solid var(--hairline)" }}>
-      <div style={{ maxWidth: 1360, margin: "0 auto", padding: "64px clamp(16px, 3vw, 40px) 40px", display: "grid", gap: 40 }} className="md:grid-cols-[2fr_1fr_1fr]">
+      <div style={{ maxWidth: 1360, margin: "0 auto", padding: "64px clamp(16px, 3vw, 40px) 40px", display: "grid", gap: 40 }} className="grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div>
           <p className="numeral" style={{ fontSize: 24 }}>Wink</p>
           <p className="muted" style={{ maxWidth: 360, marginTop: 8 }}>
             Send BOT with a note. They open it with a tap. If it is never opened, it comes back to you.
           </p>
-          <p style={{ marginTop: 16, fontSize: 13, color: "var(--n500)" }}>
-            Built on BOT Chain. Currently running on {ACTIVE.label}
+          <p style={{ marginTop: 20, fontSize: 15, fontWeight: 500 }}>
+            Built on{" "}
+            <a href="https://botchain.ai" target="_blank" rel="noreferrer" style={{ textDecoration: "underline", textUnderlineOffset: 4 }}>
+              BOT Chain
+            </a>
+          </p>
+          <p style={{ marginTop: 6, fontSize: 13, color: "var(--n500)" }}>
+            Currently running on {ACTIVE.label}
             {ACTIVE.isTestnet ? ". Test BOT has no real value." : "."}
           </p>
         </div>
@@ -34,7 +40,11 @@ export function SiteFooter() {
                 </a>
               </li>
             ) : null}
-            <li><a href={ACTIVE.explorer} target="_blank" rel="noreferrer">Block explorer</a></li>
+            <li><a href="https://botchain.ai" target="_blank" rel="noreferrer">botchain.ai</a></li>
+            <li><a href="https://scan.botchain.ai" target="_blank" rel="noreferrer">scan.botchain.ai</a></li>
+            {ACTIVE.isTestnet ? (
+              <li><a href={ACTIVE.explorer} target="_blank" rel="noreferrer">Testnet explorer</a></li>
+            ) : null}
             {ACTIVE.isTestnet ? (
               <li><a href="https://faucet.botchain.ai" target="_blank" rel="noreferrer">Testnet faucet</a></li>
             ) : null}

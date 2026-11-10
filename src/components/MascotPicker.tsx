@@ -64,7 +64,7 @@ export function MascotPicker() {
         <span className="numeral" style={{ fontSize: 20 }}>Wink</span>
         <span style={{ fontSize: 13, color: "#6b6b75" }}>Saved on this device only</span>
       </div>
-      <div style={{ display: "grid", gap: 16 }} className="lg:grid-cols-[45fr_55fr]">
+      <div style={{ display: "grid", gap: 16 }} className="grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)]">
         <div className="graphite" style={{ padding: 32, display: "grid", gap: 16, justifyItems: "center", textAlign: "center", color: "#fff" }}>
           <h2 className="display-2" style={{ fontSize: "clamp(2rem, 4vw, 2.5rem)" }}>Choose your mascot</h2>
           <div className="float" style={{ width: 200, height: 210 }} key={current.id}>
@@ -108,18 +108,18 @@ function MascotCard({ id, selected, onChoose }: { id: string; selected: boolean;
   const m = MASCOTS.find((x) => x.id === id)!;
   return (
     <div
-      className="mascot-card grain"
+      className="mascot-card mc-card grain"
       onClick={onChoose}
-      style={{ background: m.colour, color: m.ink, borderRadius: 28, padding: 20, minHeight: 280, display: "grid", gridTemplateRows: "auto 1fr auto", cursor: "pointer", outline: selected ? "3px solid #fff" : "none", boxShadow: selected ? `0 0 0 9px ${m.colour}` : undefined }}
+      style={{ background: m.colour, color: m.ink, borderRadius: 28, minHeight: 280, minWidth: 0, display: "grid", gridTemplateRows: "auto 1fr auto", cursor: "pointer", outline: selected ? "3px solid #fff" : "none", boxShadow: selected ? `0 0 0 9px ${m.colour}` : undefined }}
     >
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h3 className="numeral" style={{ fontSize: 20, fontWeight: 600 }}>{m.name}</h3>
       </div>
       <div className="mascot-art" style={{ display: "grid", placeItems: "center" }}>
-        <Mascot mascot={m} className="" />
+        <Mascot mascot={m} className="mx-auto h-auto w-full max-w-[150px]" />
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 500, maxWidth: 80 }}>{m.trait}</span>
+      <div className="mc-foot">
+        <span style={{ fontSize: 12, fontWeight: 500, maxWidth: 96 }}>{m.trait}</span>
         <button
           type="button"
           className={selected ? "btn" : "btn btn-white"}

@@ -97,13 +97,48 @@ export function ConnectPanel({ onDone }: { onDone?: () => void }) {
   );
 }
 
-export function WalletButton() {
+/** Account, balance, network switch and disconnect, or the connect list. Used inline and in the popover. */
+export function WalletPanel({ onClose }: { onClose?: () => void }) {
   const { address, isConnected, chainId } = useConnection();
   const { mutate: disconnect } = useDisconnect();
   const { mutate: switchChain, isPending: switching } = useSwitchChain();
+  const { data: balance } = useBalance({ address, chainId: ACTIVE.chain.id, query: { enabled: !!address } });
+  const wrong = isConnected && chainId !== ACTIVE.chain.id;
+  if (!isConnected || !address) return <ConnectPanel onDone={onClose} />;
+  return (
+    <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+      <div>
+        <p className="muted" style={{ fontSize: 12 }}>Connected account</p>
+        <p style={{ overflowWrap: "anywhere", fontWeight: 500 }}>{address}</p>
+      </div>
+      <div>
+        <p className="muted" style={{ fontSize: 12 }}>BOT balance on {ACTIVE.label}</p>
+        <p className="numeral" style={{ fontSize: 20 }}>{balance ? `${formatBot(balance.value, 4)} BOT` : "..."}</p>
+      </div>
+      {wrong ? (
+        <button type="button" className="btn btn-ember" disabled={switching} onClick={() => switchChain({ chainId: ACTIVE.chain.id })}>
+          {switching ? "Check your wallet..." : `Switch to ${ACTIVE.label}`}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={() => {
+          disconnect();
+          onClose?.();
+        }}
+      >
+        Disconnect
+      </button>
+    </div>
+  );
+}
+
+/** Desktop wallet control with a popover. Mobile uses WalletPanel inside the menu. */
+export function WalletButton() {
+  const { address, isConnected, chainId } = useConnection();
   const isClient = useIsClient();
   const [open, setOpen] = useState(false);
-  const { data: balance } = useBalance({ address, chainId: ACTIVE.chain.id, query: { enabled: !!address } });
 
   if (!isClient) return <span className="btn btn-ghost" style={{ minHeight: 44, opacity: 0.4 }} aria-hidden>Connect</span>;
 
@@ -134,35 +169,7 @@ export function WalletButton() {
           className="panel"
           style={{ position: "absolute", right: 0, top: 54, width: "min(340px, calc(100vw - 32px))", zIndex: 60, boxShadow: "0 40px 100px -20px rgba(0,0,0,0.8)" }}
         >
-          {isConnected && address ? (
-            <div style={{ display: "grid", gap: 12 }}>
-              <div>
-                <p className="muted" style={{ fontSize: 12 }}>Connected account</p>
-                <p style={{ wordBreak: "break-all", fontWeight: 500 }}>{address}</p>
-              </div>
-              <div>
-                <p className="muted" style={{ fontSize: 12 }}>BOT balance on {ACTIVE.label}</p>
-                <p className="numeral" style={{ fontSize: 20 }}>{balance ? `${formatBot(balance.value, 4)} BOT` : "..."}</p>
-              </div>
-              {wrong ? (
-                <button type="button" className="btn btn-ember" disabled={switching} onClick={() => switchChain({ chainId: ACTIVE.chain.id })}>
-                  {switching ? "Check your wallet..." : `Switch to ${ACTIVE.label}`}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  disconnect();
-                  setOpen(false);
-                }}
-              >
-                Disconnect
-              </button>
-            </div>
-          ) : (
-            <ConnectPanel onDone={() => setOpen(false)} />
-          )}
+          <WalletPanel onClose={() => setOpen(false)} />
         </div>
       ) : null}
     </div>
