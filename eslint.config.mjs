@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Hardhat Node tooling is CommonJS by design; the Next TS rules do not apply.
+    "hardhat.config.js",
+    "scripts/**/*.js",
+    "test/**/*.js",
   ]),
 ]);
 

@@ -54,6 +54,28 @@ exact payout math, double-withdrawal paths, reverting recipient, reentrancy,
 direct-transfer rejection, multi-gift isolation, balance conservation,
 seeded fuzz over amounts/expiries/hashes, and event values.
 
+`test/api/` (vitest, 37 tests) — canonical hash vectors incl. unicode
+normalization, theme/length/markup validation, idempotent POST,
+404/400/500/503 paths, integrity-mismatch rejection, DB-unavailable,
+rate limiting, gift state mapping incl. giftId 0, mocked-RPC reads,
+receipt validation, and no-secret health output.
+
+## Metadata backend (Slice 2)
+
+- Canonical form: `{"v":1,"theme":...,"note":...}` with NFC notes,
+  hashed with keccak256 over UTF-8 bytes. Same bytes the frontend must hash
+  before calling `createGift`. Code: `src/lib/metadata.ts`.
+- Postgres via Drizzle + Neon (`drizzle/schema.ts`, `src/lib/metadataRepo.ts`).
+  Table `gift_metadata(hash PK, canonical, created_at)`. Writes idempotent.
+- Migrations: `npm run db:generate`, then `npm run db:migrate`.
+  Migrate needs `DATABASE_URL` (Neon pooled connection string).
+- Routes: `POST /api/metadata` (30 req/10 min per IP), `GET /api/metadata/[hash]`
+  with hash recomputation before every return, `GET /api/health` (no secrets).
+- Chain reads: `src/lib/chain.ts` (getGift/giftCount, event decoding,
+  lifecycle mapping, receipt validation). Vault addresses come from
+  `NEXT_PUBLIC_VAULT_ADDRESS_TESTNET/MAINNET`. Unset means not-configured,
+  never a guessed address.
+
 ## Frontend scaffold
 
 Next.js app lives in `src/`. Wallet integration is out of scope for SESSION A.
