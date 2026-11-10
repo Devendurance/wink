@@ -6,7 +6,7 @@ import {
   MetadataValidationError,
 } from "@/lib/metadata";
 import { DatabaseUnavailableError, getMetadataStore } from "@/lib/metadataRepo";
-import { checkRateLimit, clientIpFromHeaders } from "@/lib/rateLimit";
+import { clientIpFromHeaders, rateLimit } from "@/lib/rateLimit";
 
 const MAX_GETS_PER_WINDOW = 120;
 const WINDOW_SECONDS = 60;
@@ -17,7 +17,7 @@ export async function GET(
   context: { params: Promise<{ hash: string }> }
 ): Promise<NextResponse> {
   const ip = clientIpFromHeaders(request.headers);
-  const limit = checkRateLimit(`metadata:get:${ip}`, MAX_GETS_PER_WINDOW, WINDOW_SECONDS);
+  const limit = await rateLimit("metadata:get", ip, MAX_GETS_PER_WINDOW, WINDOW_SECONDS);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "rate_limited", retryAfterSeconds: limit.retryAfterSeconds },

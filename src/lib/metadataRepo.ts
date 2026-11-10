@@ -38,19 +38,18 @@ class NeonMetadataStore implements MetadataStore {
   }
 
   async save(hash: string, canonical: string): Promise<MetadataRecord> {
-    const existing = await this.findByHash(hash);
-    if (existing) {
-      if (existing.canonical !== canonical) throw new MetadataConflictError(hash);
-      return existing;
-    }
+    // One atomic insert. A concurrent duplicate hits ON CONFLICT and is read back
+    // instead of failing on a unique violation.
     try {
-      const rows = await this.db.insert(giftMetadata).values({ hash, canonical }).returning();
-      const row = rows[0];
-      if (!row) throw new DatabaseUnavailableError("Insert returned no row.");
-      return toRecord(row);
+      const rows = await this.db.insert(giftMetadata).values({ hash, canonical }).onConflictDoNothing().returning();
+      if (rows[0]) return toRecord(rows[0]);
     } catch (err) {
       throw asUnavailable(err);
     }
+    const existing = await this.findByHash(hash);
+    if (!existing) throw new DatabaseUnavailableError("Insert conflicted but the row could not be read.");
+    if (existing.canonical !== canonical) throw new MetadataConflictError(hash);
+    return existing;
   }
 
   async findByHash(hash: string): Promise<MetadataRecord | null> {

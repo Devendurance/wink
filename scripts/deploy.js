@@ -1,55 +1,76 @@
-const fs = require("fs");
-const path = require("path");
-const hre = require("hardhat");
-
-const EXPECTED_IDS = {
-  botchainTestnet: 968,
-  botchainMainnet: 677,
-};
+/**
+ * Deploy WinkGiftVault. Plain deployment: no proxy, no owner, no upgrade path.
+ *
+ * Order matters. Everything that can refuse runs BEFORE any transaction:
+ *   1. chain id (two independent reads) equals the network's expected id
+ *   2. mainnet acknowledgment phrase is present
+ *   3. a signer exists (address only is ever printed) and is funded
+ *   4. no existing record would be overwritten
+ * Then deploy, wait for a successful receipt, confirm code exists, record it.
+ *
+ *   npx hardhat run scripts/deploy.js --network botchainTestnet
+ *   WINK_CONFIRM_MAINNET_DEPLOY=<phrase> npx hardhat run scripts/deploy.js --network botchainMainnet
+ */
+const { hre, guard, readRecord, writeRecord, compilerInfo, checkChain, signerAddress, estimateDeploy } = require("./lib/deployContext");
 
 async function main() {
   const network = hre.network.name;
-  const { chainId } = await hre.ethers.provider.getNetwork();
-  console.log(`Deploying WinkGiftVault to ${network} (chainId ${chainId})...`);
+  const production = guard.isProductionNetwork(network);
+  const chainId = await checkChain(network);
+  console.log(`Network ${network}, chain id ${chainId} confirmed.`);
 
-  if (EXPECTED_IDS[network] && Number(chainId) !== EXPECTED_IDS[network]) {
-    throw new Error(
-      `Chain ID mismatch on ${network}: got ${chainId}, expected ${EXPECTED_IDS[network]}. Check RPC before sending transactions.`
-    );
+  guard.requireMainnetAck(network, process.env);
+
+  const found = await signerAddress();
+  if (!found) throw new Error("No signer configured. Set PRIVATE_KEY in .env (never commit it). No transaction was sent.");
+  const { signer, address: from } = found;
+  const balance = await hre.ethers.provider.getBalance(from);
+  console.log(`Signer ${from}, balance ${hre.ethers.formatEther(balance)} BOT.`);
+
+  if (production) guard.assertNoOverwrite(readRecord(network), process.env);
+
+  const est = await estimateDeploy(from);
+  guard.assertFunded(balance, est.cost);
+  console.log(`Estimated deployment cost ${hre.ethers.formatEther(est.cost)} BOT. Funded.`);
+
+  const Factory = await hre.ethers.getContractFactory("WinkGiftVault", signer);
+  const vault = await Factory.deploy();
+  const tx = vault.deploymentTransaction();
+  console.log(`Deployment transaction sent: ${tx.hash}`);
+  const receipt = await tx.wait(network === "botchainMainnet" ? 2 : 1);
+  if (!receipt || receipt.status !== 1) throw new Error(`Deployment transaction ${tx.hash} did not succeed.`);
+
+  const address = await vault.getAddress();
+  const code = await hre.ethers.provider.getCode(address);
+  const record = guard.buildDeploymentRecord({
+    network,
+    chainId,
+    address,
+    txHash: tx.hash,
+    receipt,
+    compiler: compilerInfo(),
+    codeExists: code !== "0x",
+  });
+  console.log(`WinkGiftVault deployed at ${address} in block ${record.block}.`);
+
+  if (production) {
+    writeRecord(network, record);
+    console.log(`Deployment record written to deployments/${network}.json`);
+  } else {
+    console.log("Local dry run, no record written:", JSON.stringify(record));
   }
 
-  const Factory = await hre.ethers.getContractFactory("WinkGiftVault");
-  const vault = await Factory.deploy();
-  await vault.waitForDeployment();
-  const address = await vault.getAddress();
-  const block = await hre.ethers.provider.getBlockNumber();
-
-  console.log(`WinkGiftVault deployed at ${address} (block ${block})`);
-
-  const dir = path.join(__dirname, "..", "deployments");
-  fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${network}.json`);
-  fs.writeFileSync(
-    file,
-    JSON.stringify(
-      {
-        network,
-        chainId: Number(chainId),
-        address,
-        block,
-        contract: "WinkGiftVault",
-        deployedAt: new Date().toISOString(),
-      },
-      null,
-      2
-    ) + "\n"
-  );
-  console.log(`Deployment record written to deployments/${network}.json`);
-  console.log("Next: npx hardhat run scripts/export-abi.js");
-  console.log(`Verify: npx hardhat verify --network ${network} ${address}`);
+  if (production) {
+    const publicNet = network === "botchainMainnet" ? "MAINNET" : "TESTNET";
+    console.log("\nNext steps:");
+    console.log("  1. npm run export-abi");
+    console.log(`  2. npm run verify:${network === "botchainMainnet" ? "mainnet" : "testnet"}`);
+    console.log(`  3. Set in Vercel: NEXT_PUBLIC_VAULT_ADDRESS_${publicNet}=${address}`);
+    console.log(`                    NEXT_PUBLIC_VAULT_DEPLOY_BLOCK_${publicNet}=${record.block}`);
+  }
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(err.message || err);
   process.exitCode = 1;
 });

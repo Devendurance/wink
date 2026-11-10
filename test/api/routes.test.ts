@@ -7,7 +7,7 @@ import {
   __setMetadataStoreForTests,
   type MetadataStore,
 } from "../../src/lib/metadataRepo";
-import { __resetRateLimits } from "../../src/lib/rateLimit";
+import { __resetRateLimits, __setRateLimitStoreForTests } from "../../src/lib/rateLimit";
 
 function makeStore(): { store: MetadataStore; map: Map<string, { hash: string; canonical: string; createdAt: Date }> } {
   const map = new Map<string, { hash: string; canonical: string; createdAt: Date }>();
@@ -51,6 +51,7 @@ function getOne(hash: string, ip = "10.0.0.2"): Promise<Response> {
 const PAYLOAD = { v: 1, theme: "sunrise", note: "hello wink" };
 
 beforeEach(() => {
+  __setRateLimitStoreForTests(null);
   __resetRateLimits();
   __setMetadataStoreForTests(makeStore().store);
 });
@@ -153,7 +154,7 @@ describe("GET /api/health", () => {
   it("returns safe health info without secrets", async () => {
     process.env.PRIVATE_KEY = "0xdeadbeef-secret-in-test";
     process.env.DATABASE_URL = "postgres://user:s3cret@localhost:5432/db";
-    const res = await GET_HEALTH();
+    const res = await GET_HEALTH(new Request("http://localhost/api/health"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.status).toBe("ok");

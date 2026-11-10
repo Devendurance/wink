@@ -8,6 +8,13 @@
       "when": 1794319913466,
       "tag": "0000_lowly_omega_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794340753655,
+      "tag": "0001_minor_electro",
+      "breakpoints": true
     }
   ]
 }

@@ -10,7 +10,7 @@ interface Props {
   theme: GiftTheme;
   /** Message text, or null when the message is unavailable. */
   note: string | null;
-  noteStatus: "ok" | "missing" | "unavailable" | "corrupted" | "loading";
+  noteStatus: "ok" | "missing" | "unavailable" | "malformed" | "corrupted" | "loading";
   amountText: string;
   /** Skip the unwrap ceremony, for previews. */
   startOpen?: boolean;
@@ -55,7 +55,7 @@ export function GiftReveal({ theme, note, noteStatus, amountText, startOpen = fa
     ) : (
       <p className="muted">
         The personal message could not be shown{" "}
-        {noteStatus === "corrupted" ? "because it failed an integrity check" : "right now"}, but the gift itself below is
+        {noteStatus === "corrupted" ? "because it failed an integrity check" : noteStatus === "malformed" ? "because it could not be read" : noteStatus === "missing" ? "because it was not found" : "right now"}, but the gift itself below is
         exactly as recorded on chain.
       </p>
     );

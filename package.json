@@ -17,7 +17,12 @@
     "deploy:mainnet": "hardhat run scripts/deploy.js --network botchainMainnet",
     "test:ui": "vitest run test/ui",
     "qa:responsive": "node scripts/qa/responsive-check.mjs",
-    "qa:reclaim-sim": "node scripts/qa/reclaim-sim.mjs"
+    "qa:reclaim-sim": "node scripts/qa/reclaim-sim.mjs",
+    "preflight:testnet": "hardhat run scripts/preflight.js --network botchainTestnet",
+    "preflight:mainnet": "hardhat run scripts/preflight.js --network botchainMainnet",
+    "verify:testnet": "hardhat run scripts/verify.js --network botchainTestnet",
+    "verify:mainnet": "hardhat run scripts/verify.js --network botchainMainnet",
+    "readiness": "node scripts/readiness.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

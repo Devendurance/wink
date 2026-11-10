@@ -1,22 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConnection, usePublicClient } from "wagmi";
-import { scanSentGifts } from "@/lib/giftClient";
+import { scanSentGifts, type SentScan } from "@/lib/giftClient";
 import { formatBot, shortAddress } from "@/lib/giftRules";
-import { ACTIVE, TESTNET_VAULT_DEPLOY_BLOCK, txUrl } from "@/lib/network";
+import { ACTIVE, txUrl } from "@/lib/network";
 import { ConnectPanel } from "./WalletButton";
 
 /** Read-only list built from real GiftCreated events of the configured vault. */
 export function SentGifts() {
   const { address, isConnected } = useConnection();
   const publicClient = usePublicClient({ chainId: ACTIVE.chain.id });
+  const queryClient = useQueryClient();
+  const key = ["sent", ACTIVE.chain.id, ACTIVE.vault, address?.toLowerCase()];
   const query = useQuery({
-    queryKey: ["sent", ACTIVE.chain.id, address],
-    enabled: !!address && !!publicClient && !!ACTIVE.vault,
-    retry: 1,
-    queryFn: () => scanSentGifts(publicClient!, ACTIVE.vault!, address!, TESTNET_VAULT_DEPLOY_BLOCK),
+    queryKey: key,
+    enabled: !!address && !!publicClient && !!ACTIVE.vault && ACTIVE.deployBlock !== null,
+    retry: 0,
+    staleTime: 30_000,
+    // Reuse the last complete scan so a refresh only searches newer blocks.
+    queryFn: () =>
+      scanSentGifts(publicClient!, ACTIVE.vault!, address!, ACTIVE.deployBlock!, {
+        previous: queryClient.getQueryData<SentScan>(key) ?? null,
+      }),
   });
 
   return (
@@ -63,6 +70,12 @@ export function SentGifts() {
               ))}
             </ul>
           )}
+          {!query.data.complete ? (
+            <p className="help help-error" role="alert" style={{ marginTop: 16 }}>
+              The network stopped answering part way through, so this list may be missing gifts. Everything shown is real.
+              <button type="button" className="btn btn-ghost" style={{ minHeight: 36, marginLeft: 8, fontSize: 13 }} onClick={() => void query.refetch()}>Search again</button>
+            </p>
+          ) : null}
           <p className="help" style={{ marginTop: 16 }}>
             Searched blocks {query.data.fromBlock.toString()} to {query.data.toBlock.toString()} on {ACTIVE.label}, from the vault&apos;s deployment onward.
             Open a gift page to see whether it was claimed, expired or reclaimed.

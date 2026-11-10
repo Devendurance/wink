@@ -145,11 +145,31 @@ describe("missing or corrupted metadata fallback", () => {
     }) as typeof fetch;
     expect(await fetchGiftMetadata(good.hash, offline)).toEqual({ status: "unavailable" });
   });
-  it("treats content that does not match the on-chain hash as corrupted", async () => {
+  it("calls metadata corrupted only on verified evidence", async () => {
     const other = createMetadataHash({ v: 1, theme: "sunrise", note: "tampered" });
+    // Verified: valid content that does not hash to the on-chain value.
     expect(await fetchGiftMetadata(good.hash, respond(200, { canonical: other.canonical }))).toEqual({ status: "corrupted" });
-    expect(await fetchGiftMetadata(good.hash, respond(200, { canonical: "{not json" }))).toEqual({ status: "corrupted" });
-    expect(await fetchGiftMetadata(good.hash, respond(500, {}))).toEqual({ status: "corrupted" });
+    // Verified: the server itself reported an integrity mismatch.
+    expect(await fetchGiftMetadata(good.hash, respond(500, { error: "metadata_integrity_mismatch" }))).toEqual({ status: "corrupted" });
+  });
+
+  it("does not call generic failures corrupted", async () => {
+    expect(await fetchGiftMetadata(good.hash, respond(500, {}))).toEqual({ status: "unavailable" });
+    expect(await fetchGiftMetadata(good.hash, respond(500, { error: "boom" }))).toEqual({ status: "unavailable" });
+    expect(await fetchGiftMetadata(good.hash, respond(502, {}))).toEqual({ status: "unavailable" });
+    expect(await fetchGiftMetadata(good.hash, respond(429, { error: "rate_limited" }))).toEqual({ status: "unavailable" });
+    const unreadable500 = (async () => new Response("<html>oops</html>", { status: 500 })) as typeof fetch;
+    expect(await fetchGiftMetadata(good.hash, unreadable500)).toEqual({ status: "unavailable" });
+  });
+
+  it("classifies unusable content as malformed", async () => {
+    expect(await fetchGiftMetadata(good.hash, respond(200, { canonical: "{not json" }))).toEqual({ status: "malformed" });
+    expect(await fetchGiftMetadata(good.hash, respond(200, { canonical: '{"v":2,"theme":"sunrise","note":"x"}' }))).toEqual({ status: "malformed" });
+    expect(await fetchGiftMetadata(good.hash, respond(200, {}))).toEqual({ status: "malformed" });
+    expect(await fetchGiftMetadata(good.hash, respond(400, { error: "invalid_hash" }))).toEqual({ status: "malformed" });
+    const notJson = (async () => new Response("nope", { status: 200 })) as typeof fetch;
+    expect(await fetchGiftMetadata(good.hash, notJson)).toEqual({ status: "malformed" });
+    expect(await fetchGiftMetadata("0x123" as never)).toEqual({ status: "malformed" });
   });
 });
 

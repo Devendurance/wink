@@ -7,7 +7,7 @@ import { useBalance, useConnection, usePublicClient, useSwitchChain } from "wagm
 import { ChainReadError, deriveLifecycle, normalizeGiftId, type GiftLifecycle, type GiftView as Gift } from "@/lib/chain";
 import { fetchGiftMetadata, findProofTx, readGiftSnapshot } from "@/lib/giftClient";
 import { confirmActionReceipt, formatBot, resolveGiftAction, sameAddress, shortAddress, type GiftAction } from "@/lib/giftRules";
-import { ACTIVE, TESTNET_VAULT_DEPLOY_BLOCK, addressUrl, txUrl } from "@/lib/network";
+import { ACTIVE, addressUrl, txUrl } from "@/lib/network";
 import { useGasEstimate, useVaultTx } from "@/lib/useVaultTx";
 import { ConnectPanel } from "./WalletButton";
 import { GiftReveal } from "./GiftReveal";
@@ -131,20 +131,25 @@ function GiftLoader({ id }: { id: bigint }) {
     queryFn: () => fetchGiftMetadata(gift!.metadataHash),
   });
 
+  // Historical proof links are optional. A failure here never affects state or actions.
   const proofQuery = useQuery({
-    queryKey: ["gift-proof", id.toString(), gift?.state],
-    enabled: !!gift && !!publicClient,
-    retry: 1,
+    queryKey: ["gift-proof", ACTIVE.chain.id, id.toString(), gift?.state],
+    enabled: !!gift && !!publicClient && ACTIVE.deployBlock !== null,
+    retry: 0,
+    staleTime: 60_000,
     queryFn: async () => {
-      const from = TESTNET_VAULT_DEPLOY_BLOCK;
-      const created = await findProofTx(publicClient!, vault, id, "GiftCreated", from);
-      const action =
-        gift!.state === "claimed"
-          ? await findProofTx(publicClient!, vault, id, "GiftClaimed", from)
-          : gift!.state === "reclaimed"
-            ? await findProofTx(publicClient!, vault, id, "GiftReclaimed", from)
-            : null;
-      return { created, action };
+      const from = ACTIVE.deployBlock!;
+      const opts = { chainId: ACTIVE.chain.id };
+      const actionEvent = gift!.state === "claimed" ? "GiftClaimed" : gift!.state === "reclaimed" ? "GiftReclaimed" : null;
+      const [created, action] = await Promise.allSettled([
+        findProofTx(publicClient!, vault, id, "GiftCreated", from, opts),
+        actionEvent ? findProofTx(publicClient!, vault, id, actionEvent, from, opts) : Promise.resolve(null),
+      ]);
+      return {
+        created: created.status === "fulfilled" ? created.value : null,
+        action: action.status === "fulfilled" ? action.value : null,
+        failed: created.status === "rejected" || action.status === "rejected",
+      };
     },
   });
 
@@ -187,7 +192,7 @@ function GiftLoader({ id }: { id: bigint }) {
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["gift", ACTIVE.chain.id, id.toString()] });
-    await queryClient.invalidateQueries({ queryKey: ["gift-proof", id.toString()] });
+    await queryClient.invalidateQueries({ queryKey: ["gift-proof", ACTIVE.chain.id, id.toString()] });
   };
 
   return (
@@ -195,7 +200,7 @@ function GiftLoader({ id }: { id: bigint }) {
       <div style={{ display: "grid", gap: 24 }} className="grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <GiftReveal key={id.toString()} theme={theme} note={note} noteStatus={noteStatus} amountText={`${formatBot(gift.amount, 6)} BOT`} />
         <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
-          <GiftDetails gift={gift} lifecycle={lifecycle} nowSeconds={nowSeconds} proof={proofQuery.data} proofLoading={proofQuery.isPending} />
+          <GiftDetails gift={gift} lifecycle={lifecycle} nowSeconds={nowSeconds} proof={proofQuery.data} proofLoading={proofQuery.isFetching} proofFailed={proofQuery.isError || !!proofQuery.data?.failed} onRetryProof={() => void proofQuery.refetch()} />
           <GiftActions gift={gift} lifecycle={actionLifecycle} nowSeconds={nowSeconds} confirmingExpiry={confirmingExpiry} onConfirmed={refresh} />
         </div>
       </div>
@@ -209,12 +214,16 @@ function GiftDetails({
   nowSeconds,
   proof,
   proofLoading,
+  proofFailed,
+  onRetryProof,
 }: {
   gift: Gift;
   lifecycle: GiftLifecycle;
   nowSeconds: bigint;
   proof?: { created: string | null; action: string | null };
   proofLoading: boolean;
+  proofFailed: boolean;
+  onRetryProof: () => void;
 }) {
   const { address } = useConnection();
   const [copied, setCopied] = useState(false);
@@ -270,6 +279,14 @@ function GiftDetails({
         ) : null}
       </div>
       {proofLoading ? <p className="help">Looking up transaction proof...</p> : null}
+      {!proofLoading && proofFailed ? (
+        <p className="help" role="status">
+          Some transaction links could not be loaded from the network. The gift details above are read directly from the chain and are not affected.{" "}
+          <button type="button" onClick={onRetryProof} style={{ textDecoration: "underline", background: "none", border: 0, color: "inherit", cursor: "pointer", padding: 0 }}>
+            Try again
+          </button>
+        </p>
+      ) : null}
     </section>
   );
 }
