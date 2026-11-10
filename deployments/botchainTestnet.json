@@ -1,0 +1,16 @@
+{
+  "network": "botchainTestnet",
+  "chainId": 968,
+  "address": "0x61CB150B69baBa224A75F88307eAf9ce8B992c8E",
+  "block": 29949363,
+  "contract": "WinkGiftVault",
+  "deployedAt": "2026-11-10T14:38:26.439Z",
+  "deploymentTx": "0xd11800300afdb658176a6a95e07de3fcbef13e4abe14fb8a1d13576190f3911f",
+  "explorer": "https://scan.bohr.life/address/0x61CB150B69baBa224A75F88307eAf9ce8B992c8E#code",
+  "verified": true,
+  "gifts": {
+    "gift0CreateTx": "0xe0a7c3a79230411c1c610c07b1e0cdcf3c714c7d8328d88ccfe9bc0dd0bd0d55",
+    "gift0ClaimTx": "0x2d001b193ac887526e10c448c6748f6f3e3762eb44e4a66e9e3288d811097577",
+    "gift1CreateTx": "0x2322b196741280a0d9629b9304b2685a38cb9949174a39faa2e14c93517bd359"
+  }
+}
