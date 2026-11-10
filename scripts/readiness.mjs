@@ -92,4 +92,4 @@ const w = Math.max(...rows.map((r) => r.name.length));
 for (const r of rows) console.log(`${r.level.toUpperCase().padEnd(5)} ${r.name.padEnd(w)}  ${r.detail}`);
 const failed = rows.filter((r) => r.level === "fail").length;
 console.log(`\n${failed ? "NOT READY" : "OK"}: ${failed} failed. No transactions were sent.`);
-process.exit(failed ? 1 : 0);
+process.exitCode = failed ? 1 : 0;
