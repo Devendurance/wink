@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wink — native-BOT gifting DApp on BOT Chain
 
-## Getting Started
+Independent gift product. Sender funds native BOT into `WinkGiftVault`, the
+designated recipient claims before expiry, otherwise the sender reclaims.
+This repo is backend-first in SESSION A: contract plus tests and chain config.
+No frontend wallet integration and no mainnet deployment in this session.
 
-First, run the development server:
+## Chains (verified 2026-11-10 via eth_chainId)
+
+| Environment | Chain ID | RPC | Explorer |
+|---|---|---|---|
+| Bohr testnet | 968 (`0x3c8`) | https://rpc.bohr.life | https://scan.bohr.life |
+| BOT Chain mainnet | 677 (`0x2a5`) | https://rpc.botchain.ai | https://scan.botchain.ai |
+
+Testnet faucet: https://faucet.botchain.ai. Recipients pay their own claim gas.
+
+## Contract
+
+- `contracts/WinkGiftVault.sol`: `createGift(recipient, expiresAt, metadataHash)`
+  payable, `claim(giftId)`, `reclaim(giftId)`, `getGift(giftId)`, events
+  `GiftCreated` / `GiftClaimed` / `GiftReclaimed`.
+- Rules: amount > 0, recipient set and not the sender, expiry within
+  now+1h to now+30d. Claim only by recipient before expiry, reclaim only by
+  sender at/after expiry. Checks-effects-interactions, `nonReentrant`,
+  checked low-level calls. No admin drain, no proxy, no fee.
+- Mocks: `contracts/test/Mocks.sol` (reverting + reentrant recipients).
+- Committed ABI: `abi/WinkGiftVault.json` (refresh with `npm run export-abi`).
+
+## Backend quickstart
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env        # fill PRIVATE_KEY only when deploying
+npx hardhat compile
+npx hardhat test            # or: npm run test:contracts
+node scripts/export-abi.js  # refresh abi/WinkGiftVault.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Deploy to testnet only when ready (checks RPC chain ID before sending):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run deploy:testnet
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Do not deploy to mainnet in SESSION A. Mainnet path exists
+(`npm run deploy:mainnet`) for a later verified release session only.
 
-## Learn More
+## Tests
 
-To learn more about Next.js, take a look at the following resources:
+`test/WinkGiftVault.test.js` — 17 cases: happy-path create/claim/reclaim,
+zero amount/address, self-gift, expiry window, unknown IDs, wrong caller,
+early/late boundaries incl. exact `expiresAt - 1` / `expiresAt` edges,
+exact payout math, double-withdrawal paths, reverting recipient, reentrancy,
+direct-transfer rejection, multi-gift isolation, balance conservation,
+seeded fuzz over amounts/expiries/hashes, and event values.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Frontend scaffold
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Next.js app lives in `src/`. Wallet integration is out of scope for SESSION A.
 
-## Deploy on Vercel
+## Docs
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Playbook: `WINK_5_HOUR_BACKEND_FIRST_PLAYBOOK.md`. Product context: `docs/`.

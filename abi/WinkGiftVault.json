@@ -1,0 +1,421 @@
+{
+  "contractName": "WinkGiftVault",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "DirectTransfersNotAllowed",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "expiresAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "maxAllowed",
+          "type": "uint64"
+        }
+      ],
+      "name": "ExpiryTooFar",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "expiresAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "minAllowed",
+          "type": "uint64"
+        }
+      ],
+      "name": "ExpiryTooSoon",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        }
+      ],
+      "name": "NotFunded",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "caller",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        }
+      ],
+      "name": "NotRecipient",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "caller",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "NotSender",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ReentrancyGuardReentrantCall",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SelfGift",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "nowTs",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "expiresAt",
+          "type": "uint64"
+        }
+      ],
+      "name": "TooEarly",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "nowTs",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "expiresAt",
+          "type": "uint64"
+        }
+      ],
+      "name": "TooLate",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "TransferFailed",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        }
+      ],
+      "name": "UnknownGift",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroAmount",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroRecipient",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "GiftClaimed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "expiresAt",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "metadataHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "GiftCreated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "GiftReclaimed",
+      "type": "event"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "fallback"
+    },
+    {
+      "inputs": [],
+      "name": "MAX_DURATION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MIN_DURATION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        }
+      ],
+      "name": "claim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "internalType": "uint64",
+          "name": "expiresAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "metadataHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "createGift",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getGift",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "recipient",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint64",
+              "name": "expiresAt",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "metadataHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "enum WinkGiftVault.GiftState",
+              "name": "state",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct WinkGiftVault.Gift",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "giftCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "giftId",
+          "type": "uint256"
+        }
+      ],
+      "name": "reclaim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "receive"
+    }
+  ],
+  "bytecode": "0x6080604052348015600f57600080fd5b5060017f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f0055610ab7806100436000396000f3fe6080604052600436106100745760003560e01c8063b1724b461161004e578063b1724b4614610113578063b6a6d1771461012a578063bf6713f614610140578063ed7003741461016d57610092565b80632dabbeed146100ab578063379607f5146100cd578063421bdd9b146100ed57610092565b366100925760405163b2c6eb3760e01b815260040160405180910390fd5b60405163b2c6eb3760e01b815260040160405180910390fd5b3480156100b757600080fd5b506100cb6100c636600461095a565b610182565b005b3480156100d957600080fd5b506100cb6100e836600461095a565b61039b565b6101006100fb366004610973565b610580565b6040519081526020015b60405180910390f35b34801561011f57600080fd5b5061010062278d0081565b34801561013657600080fd5b50610100610e1081565b34801561014c57600080fd5b5061016061015b36600461095a565b6107f0565b60405161010a91906109e2565b34801561017957600080fd5b50600054610100565b61018a6108e8565b60005481106101b4576040516366da3a3560e11b8152600481018290526024015b60405180910390fd5b600081815260016020819052604090912090600582015460ff1660038111156101df576101df6109cc565b14610200576040516335035b2960e11b8152600481018390526024016101ab565b80546001600160a01b0316331461023e57805460405163fc21064f60e01b81523360048201526001600160a01b0390911660248201526044016101ab565b60038101546001600160401b031642101561028a5760038101546040516336b9f2cd60e01b8152600481018490524260248201526001600160401b0390911660448201526064016101ab565b60058101805460ff19166003179055600281015481546040516001600160a01b0390911690600090829084908381818185875af1925050503d80600081146102ee576040519150601f19603f3d011682016040523d82523d6000602084013e6102f3565b606091505b505090508061032757604051630e21dcbb60e11b81526001600160a01b0383166004820152602481018490526044016101ab565b816001600160a01b0316857fcadbae28b9856c9098fdff1eb7b51d34c29c5a8508c860655ce6e00294f01d708560405161036391815260200190565b60405180910390a35050505061039860017f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f0055565b50565b6103a36108e8565b60005481106103c8576040516366da3a3560e11b8152600481018290526024016101ab565b600081815260016020819052604090912090600582015460ff1660038111156103f3576103f36109cc565b14610414576040516335035b2960e11b8152600481018390526024016101ab565b60018101546001600160a01b03163314610458576001810154604051630d71ae6560e11b81523360048201526001600160a01b0390911660248201526044016101ab565b60038101546001600160401b031642106104a3576003810154604051635d38631b60e11b8152600481018490524260248201526001600160401b0390911660448201526064016101ab565b60058101805460ff1916600290811790915581015460018201546040516001600160a01b0390911690600090829084908381818185875af1925050503d806000811461050b576040519150601f19603f3d011682016040523d82523d6000602084013e610510565b606091505b505090508061054457604051630e21dcbb60e11b81526001600160a01b0383166004820152602481018490526044016101ab565b816001600160a01b0316857f922f798eaf573e27f4783e4828621aff12fc8b076fed02a2192807167ec499458560405161036391815260200190565b6000346000036105a357604051631f2a200560e01b815260040160405180910390fd5b6001600160a01b0384166105ca5760405163d27b444360e01b815260040160405180910390fd5b336001600160a01b038516036105f357604051636996c19360e01b815260040160405180910390fd5b6000610601610e1042610a5a565b9050600061061262278d0042610a5a565b905081856001600160401b031610156106515760405163a582cfdd60e01b81526001600160401b038087166004830152831660248201526044016101ab565b80856001600160401b0316111561068e57604051630181da8960e31b81526001600160401b038087166004830152821660248201526044016101ab565b600054925061069e836001610a5a565b6000556040805160c0810182523381526001600160a01b038816602082015234918101919091526001600160401b03861660608201526080810185905260a0810160019052600084815260016020818152604092839020845181546001600160a01b03199081166001600160a01b0392831617835592860151828501805490941691161790915591830151600283015560608301516003808401805467ffffffffffffffff19166001600160401b03909316929092179091556080840151600484015560a08401516005840180549193909260ff19909216918490811115610788576107886109cc565b021790555050604080513481526001600160401b03881660208201529081018690526001600160a01b0388169150339085907f96a20893037dd92c83828796961902add3a18750b29cafcbddd6cde4c00ef1a79060600160405180910390a450509392505050565b6108266040805160c08101825260008082526020820181905291810182905260608101829052608081018290529060a082015290565b600054821061084b576040516366da3a3560e11b8152600481018390526024016101ab565b600082815260016020818152604092839020835160c08101855281546001600160a01b03908116825293820154909316918301919091526002810154928201929092526003808301546001600160401b0316606083015260048301546080830152600583015491929160a084019160ff909116908111156108ce576108ce6109cc565b60038111156108df576108df6109cc565b90525092915050565b6108f0610916565b60027f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f0055565b7f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f005460020361095857604051633ee5aeb560e01b815260040160405180910390fd5b565b60006020828403121561096c57600080fd5b5035919050565b60008060006060848603121561098857600080fd5b83356001600160a01b038116811461099f57600080fd5b925060208401356001600160401b03811681146109bb57600080fd5b929592945050506040919091013590565b634e487b7160e01b600052602160045260246000fd5b81516001600160a01b03908116825260208084015190911690820152604080830151908201526060808301516001600160401b0316908201526080808301519082015260a082015160c082019060048110610a4d57634e487b7160e01b600052602160045260246000fd5b8060a08401525092915050565b80820180821115610a7b57634e487b7160e01b600052601160045260246000fd5b9291505056fea2646970667358221220c95afa5df0969e17c5bb449c66ccd3761f1f101d210b69243d8603038818193964736f6c634300081c0033"
+}
